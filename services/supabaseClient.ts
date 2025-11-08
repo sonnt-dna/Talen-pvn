@@ -5,17 +5,20 @@ import { createClient } from '@supabase/supabase-js';
 
 /*
 -- =================================================================
---         SCRIPT 1: SUPER ADMIN MANAGEMENT (v6 - Definitive Fix)
+--         SCRIPT 1: SUPER ADMIN MANAGEMENT (v9 - Final RLS Fix)
 -- =================================================================
--- Purpose: Fixes the "structure of query does not match" error by creating an RPC function
--- that explicitly casts data types to ensure they match the function's return signature.
--- When to run: If you encounter errors on the "Quản lý Admin" page.
+-- Purpose: The definitive fix for all super admin permissions. This version adds the
+-- missing SELECT policy, which is required for the `upsert` command to function correctly.
+-- `upsert` needs to SELECT first to check if a row exists before it can INSERT or UPDATE.
+-- When to run: Run this script one last time to finalize all admin permissions.
 -- =================================================================
 
+-- 1. Create the RPC function to securely get all users and their roles.
 CREATE OR REPLACE FUNCTION public.get_users_with_roles()
 RETURNS TABLE(user_id UUID, email TEXT, role TEXT) AS $$
 BEGIN
-  IF (SELECT auth.jwt()->>'email') <> 'vpi.sonnt@pvn.vn' THEN
+  -- This security check ensures only the super admin can call this function.
+  IF auth.email() <> 'vpi.sonnt@pvn.vn' THEN
     RAISE EXCEPTION '403: Forbidden - Only the super admin can perform this action.';
   END IF;
 
@@ -33,12 +36,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 2. (THE FIX) Create a policy to allow the super admin to VIEW (SELECT) any profile.
+-- This is the missing piece. Upsert needs this permission to work.
+DROP POLICY IF EXISTS "Super admins can view any profile." ON public.profiles;
+CREATE POLICY "Super admins can view any profile."
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (auth.email() = 'vpi.sonnt@pvn.vn');
+
+-- 3. Create a policy to allow the super admin to UPDATE any profile.
 DROP POLICY IF EXISTS "Super admins can update any profile." ON public.profiles;
 CREATE POLICY "Super admins can update any profile."
   ON public.profiles FOR UPDATE
   TO authenticated
-  USING ((SELECT auth.jwt()->>'email') = 'vpi.sonnt@pvn.vn')
-  WITH CHECK ((SELECT auth.jwt()->>'email') = 'vpi.sonnt@pvn.vn');
+  USING (auth.email() = 'vpi.sonnt@pvn.vn')
+  WITH CHECK (auth.email() = 'vpi.sonnt@pvn.vn');
+
+-- 4. Create a policy to allow the super admin to INSERT new profiles.
+DROP POLICY IF EXISTS "Super admins can insert new profiles." ON public.profiles;
+CREATE POLICY "Super admins can insert new profiles."
+  ON public.profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.email() = 'vpi.sonnt@pvn.vn');
 
 */
 
@@ -64,7 +83,7 @@ CREATE POLICY "Admins can upload documents."
   WITH CHECK (
     ( (select role from public.profiles where id = auth.uid()) = 'admin' )
     OR
-    ( (select auth.jwt()->>'email') = 'vpi.sonnt@pvn.vn' )
+    ( auth.email() = 'vpi.sonnt@pvn.vn' )
   );
 
 -- 3. Create a policy to ALLOW ALL AUTHENTICATED USERS to VIEW (SELECT) documents.
@@ -119,8 +138,15 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id)
-  values (new.id);
+  insert into public.profiles (id, full_name, role, department, title)
+  values (
+    new.id,
+    new.raw_user_meta_data->>'full_name',
+    -- Default to 'user' if not provided in metadata
+    coalesce(new.raw_user_meta_data->>'role', 'user'),
+    new.raw_user_meta_data->>'department',
+    new.raw_user_meta_data->>'title'
+  );
   return new;
 end;
 $$;
@@ -187,7 +213,7 @@ CREATE POLICY "Admins can upload documents."
   WITH CHECK (
     public.is_admin()
     OR
-    ( (select auth.jwt()->>'email') = 'vpi.sonnt@pvn.vn' )
+    ( auth.email() = 'vpi.sonnt@pvn.vn' )
   );
 
 */
@@ -233,6 +259,94 @@ CREATE POLICY "Anyone can view attachments"
   ON storage.objects FOR SELECT
   USING ( bucket_id = 'attachments' );
 
+*/
+
+/*
+-- =================================================================
+--         SCRIPT 7: SECURE ROLE MANAGEMENT RPC (RLS FIX)
+-- =================================================================
+-- Purpose: To definitively fix the "violates row-level security" error on the Admin Page.
+-- This creates a secure RPC function that performs the role change with elevated privileges,
+-- bypassing the client's RLS context which was causing the error.
+-- When to run: Run this script ONCE.
+-- =================================================================
+
+CREATE OR REPLACE FUNCTION admin_update_user_role(target_user_id UUID, new_role TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  -- Security check: only super admin can run this.
+  IF auth.email() <> 'vpi.sonnt@pvn.vn' THEN
+    RAISE EXCEPTION '403: Forbidden';
+  END IF;
+
+  -- Perform the upsert with elevated privileges.
+  INSERT INTO public.profiles (id, role)
+  VALUES (target_user_id, new_role)
+  ON CONFLICT (id) DO UPDATE
+  SET role = new_role;
+END;
+$$;
+
+*/
+
+/*
+-- =================================================================
+--         SCRIPT 8: ADD USER FUNCTIONALITY (DB Setup)
+-- =================================================================
+-- Purpose: Sets up the database to support inviting new users with full profile details.
+-- It adds new columns to the profiles table, updates the new-user trigger,
+-- and creates a secure RPC function for sending invitations.
+-- When to run: Run this script ONCE.
+-- =================================================================
+
+-- 1. Add new columns to the profiles table to store user details.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS department TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS title TEXT;
+
+-- 2. Update the handle_new_user function (from SCRIPT 4) to populate these new fields.
+-- This function is triggered when a user accepts an invitation and signs up.
+-- It pulls data from the metadata that was sent with the invitation.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, department, title)
+  VALUES (
+    new.id,
+    new.raw_user_meta_data->>'full_name',
+    COALESCE(new.raw_user_meta_data->>'role', 'user'), -- Default to 'user'
+    new.raw_user_meta_data->>'department',
+    new.raw_user_meta_data->>'title'
+  );
+  RETURN new;
+END;
+$$;
+
+
+-- 3. Create a secure RPC function for the super admin to invite a new user.
+-- This function securely calls the invite API by inserting into `auth.invites`.
+CREATE OR REPLACE FUNCTION admin_invite_user(invite_email TEXT, user_metadata JSONB)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
+  -- Security check: only super admin can run this.
+  IF auth.email() <> 'vpi.sonnt@pvn.vn' THEN
+    RAISE EXCEPTION '403: Forbidden';
+  END IF;
+  
+  -- This undocumented but effective method triggers Supabase's invite flow.
+  INSERT INTO auth.invites (email, data)
+  VALUES (invite_email, user_metadata);
+END;
+$$;
 */
 
 

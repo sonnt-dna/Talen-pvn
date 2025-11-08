@@ -3,7 +3,7 @@ import React from 'react';
 import { Session } from '@supabase/supabase-js';
 import PortalItem from './PortalItem';
 import { 
-    NotebookIcon, CloudIcon, SparkleIcon, DocumentIcon, UsersIcon
+    NotebookIcon, CloudIcon, SparkleIcon, DocumentIcon, UsersIcon, FormIcon
 } from './icons/Icons';
 
 type Page = 'grid' | 'documents' | 'admin';
@@ -48,6 +48,12 @@ const PortalGrid: React.FC<PortalGridProps> = ({ session, openProblemStatementMo
           icon: <DocumentIcon />,
           action: { type: 'navigate', page: 'documents' }
         },
+        {
+          id: 14,
+          title: 'Khảo sát ý kiến Youth',
+          icon: <FormIcon />,
+          action: { type: 'link', href: 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=DHmf9DHYokaJjSeQKotJDwN2J9SELfpCiqjKgiobkEZURTQyWEk3S0VJMTBBT0hXTzBIUE9TRU5FUS4u' }
+        }
     ];
 
     const isSuperAdmin = session.user.email === 'vpi.sonnt@pvn.vn';

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
+import AddUserModal from './AddUserModal';
 
 interface UserWithRole {
   user_id: string;
@@ -17,6 +18,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [isAddUserModalOpen, setAddUserModalOpen] = useState(false);
+
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -40,10 +43,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     setUpdatingUserId(userId);
     setError(null);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
+      // FIX: Call a secure RPC function instead of a direct upsert from the client.
+      // This bypasses the client's RLS context, resolving the foreign key constraint error.
+      const { error } = await supabase.rpc('admin_update_user_role', {
+        target_user_id: userId,
+        new_role: newRole,
+      });
       
       if (error) throw error;
 
@@ -63,7 +68,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
         Quay lại Cổng
       </button>
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Quản lý Admin</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Quản lý Admin</h1>
+        <button 
+          onClick={() => setAddUserModalOpen(true)}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#168a40] hover:bg-[#116c32] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#168a40]"
+        >
+          <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 100-2 1 1 0 000 2z" />
+            <path fillRule="evenodd" d="M16 12.5a.5.5 0 01.5.5v2a.5.5 0 01-1 0v-2a.5.5 0 01.5-.5z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M18.5 14a.5.5 0 01.5.5v1a.5.5 0 01-1 0v-1a.5.5 0 01.5-.5zM15 14.5a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" />
+          </svg>
+          Thêm người dùng
+        </button>
+      </div>
 
       {isLoading && <p>Đang tải danh sách người dùng...</p>}
       {error && <p className="text-red-600">Lỗi: {error}</p>}
@@ -106,6 +124,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
             ))}
           </ul>
         </div>
+      )}
+      {isAddUserModalOpen && (
+        <AddUserModal 
+          onClose={() => {
+            setAddUserModalOpen(false);
+            fetchUsers(); // Refresh list after potential add
+          }} 
+        />
       )}
     </div>
   );

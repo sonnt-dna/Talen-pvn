@@ -59,3 +59,13 @@ export const UsersIcon = () => (
         <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#168a40" />
     </svg>
 );
+
+// 6. Gửi ý kiến / Góp ý
+export const FormIcon = () => (
+    <svg {...iconProps}>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" stroke="black" />
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" stroke="#168a40" />
+        <path d="M10 12h4" stroke="#168a40" />
+        <path d="M10 16h4" stroke="#168a40" />
+    </svg>
+);
