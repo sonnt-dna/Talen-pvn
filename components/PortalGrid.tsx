@@ -34,7 +34,7 @@ const PortalGrid: React.FC<PortalGridProps> = ({ session, openProblemStatementMo
           id: 10, 
           title: 'ChatGPTs', 
           icon: <CloudIcon />,
-          action: { type: 'link', href: 'https://chat.openai.com/' }
+          action: { type: 'link', href: 'https://chatgpt.com/g/g-690f4986a3a481918cec816cc152cc3b-san-pham-cong-nghe-chien-luoc-pvn/' }
         },
         { 
           id: 11, 
