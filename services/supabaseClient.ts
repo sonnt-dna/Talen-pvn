@@ -294,11 +294,12 @@ $$;
 
 /*
 -- =================================================================
---         SCRIPT 8: ADD USER FUNCTIONALITY (DB Setup)
+--         SCRIPT 8: ADD USER FUNCTIONALITY (Fix for auth function signature)
 -- =================================================================
 -- Purpose: Sets up the database to support inviting new users with full profile details.
--- It adds new columns to the profiles table, updates the new-user trigger,
--- and creates a secure RPC function for sending invitations.
+-- It adds new columns, updates the new-user trigger, and creates a secure RPC function
+-- that uses the modern Supabase invite method. This version changes the function signature
+-- to use JSON instead of JSONB to fix a "function does not exist" error on some Supabase versions.
 -- When to run: Run this script ONCE.
 -- =================================================================
 
@@ -330,8 +331,10 @@ $$;
 
 
 -- 3. Create a secure RPC function for the super admin to invite a new user.
--- This function securely calls the invite API by inserting into `auth.invites`.
-CREATE OR REPLACE FUNCTION admin_invite_user(invite_email TEXT, user_metadata JSONB)
+-- This function securely calls the modern invite API.
+-- FIX: Changed user_metadata type from JSONB to JSON to resolve a "function does not exist"
+-- error on certain Supabase versions where the expected signature is different.
+CREATE OR REPLACE FUNCTION admin_invite_user(invite_email TEXT, user_metadata JSON)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
@@ -342,9 +345,9 @@ BEGIN
     RAISE EXCEPTION '403: Forbidden';
   END IF;
   
-  -- This undocumented but effective method triggers Supabase's invite flow.
-  INSERT INTO auth.invites (email, data)
-  VALUES (invite_email, user_metadata);
+  -- Use the modern, built-in Supabase function for sending invites.
+  -- This replaces the deprecated `INSERT INTO auth.invites` method which caused the error.
+  PERFORM auth.admin_invite_user_by_email(invite_email, user_metadata);
 END;
 $$;
 */
