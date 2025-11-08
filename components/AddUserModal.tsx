@@ -43,13 +43,11 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ onClose }) => {
                 role,
             };
 
-            // FIX: The metadata for an invite must be nested inside a 'data' key to match
-            // the structure Supabase Auth expects for the new user's `raw_user_meta_data`.
-            const payloadForInvite = { data: userMetadata };
-
+            // FIX: The userMetadata object is passed directly to the updated RPC function.
+            // This corrects the payload format and resolves the invite error.
             const { error: rpcError } = await supabase.rpc('admin_invite_user', {
                 invite_email: email,
-                user_metadata: payloadForInvite,
+                user_metadata: userMetadata,
             });
 
             if (rpcError) throw rpcError;
@@ -126,11 +124,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ onClose }) => {
                             <button
                                 type="submit"
                                 disabled={isLoading}
-                                className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#007A33] hover:bg-[#005c26] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#007A33] disabled:bg-gray-400"
+                                className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#168a40] hover:bg-[#116c32] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#168a40] disabled:bg-gray-400"
                             >
                                 <svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 100-2 1 1 0 000 2zM16.5 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-                                    <path d="M16 12a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1z" />
+                                  <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 11a1 1 0 100-2 1 1 0 000 2z" />
+                                  <path fillRule="evenodd" d="M16 12.5a.5.5 0 01.5.5v2a.5.5 0 01-1 0v-2a.5.5 0 01.5-.5z" clipRule="evenodd" />
+                                  <path fillRule="evenodd" d="M18.5 14a.5.5 0 01.5.5v1a.5.5 0 01-1 0v-1a.5.5 0 01.5-.5zM15 14.5a.5.5 0 01.5-.5h2a.5.5 0 010 1h-2a.5.5 0 01-.5-.5z" clipRule="evenodd" />
                                 </svg>
                                 {isLoading ? 'Đang gửi...' : 'Thêm người dùng'}
                             </button>

@@ -26,25 +26,25 @@ const PortalGrid: React.FC<PortalGridProps> = ({ session, openProblemStatementMo
     const baseItems: PortalItemType[] = [
         { 
           id: 9, 
-          title: 'Notebook LLM Public', 
+          title: 'Notebook LLM Đổi mới sáng tạo', 
           icon: <NotebookIcon />,
           action: { type: 'link', href: 'https://colab.research.google.com/' }
         },
         { 
           id: 10, 
-          title: 'ChatGPTs', 
+          title: 'ChatGPTs tra cứu thông tin', 
           icon: <CloudIcon />,
           action: { type: 'link', href: 'https://chatgpt.com/g/g-690f4986a3a481918cec816cc152cc3b-san-pham-cong-nghe-chien-luoc-pvn/' }
         },
         { 
           id: 11, 
-          title: 'Hướng dẫn nhập Problem/Statement', 
+          title: 'Problem/Statement', 
           icon: <SparkleIcon />,
           action: { type: 'modal' }
         },
         { 
           id: 12, 
-          title: 'Văn bản và tài liệu', 
+          title: 'Tài liệu học tập', 
           icon: <DocumentIcon />,
           action: { type: 'navigate', page: 'documents' }
         },
