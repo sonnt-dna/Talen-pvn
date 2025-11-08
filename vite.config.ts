@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
-      allowedHosts: 'all', // 👈 thêm dòng này
+      allowedHosts: ['talent2025-pvn.onrender.com', 'localhost','all'], // 👈 thêm dòng này
       // hoặc: allowedHosts: ['talen-pvn.onrender.com', 'localhost']
       // hoặc cho tất cả: allowedHosts: 'all'
     },
